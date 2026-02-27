@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  repository: kasparov112000/learnbytesting-stats
+  pullPolicy: Always
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 3038
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+env:
+  PORT: "3038"
+  ENV_NAME: "production"
+  LOG_LEVEL: "INFO"
+  STATS_MONGODB_URL: "mongodb://lbtuser:lbt-db-pass-2026@mongodb:27017/stats-db?authSource=admin"
+  STATS_MONGODB_DATABASE: "stats-db"

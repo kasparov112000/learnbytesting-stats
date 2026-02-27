@@ -1,0 +1,83 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  lint:
+    name: Lint and type-check (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+
+    - name: Checkout main
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  build:
+    name: Build, push, and deploy
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout main
+      uses: actions/checkout@v4
+
+    - name: Update SHA
+      run: echo $GITHUB_SHA > $GITHUB_WORKSPACE/helm/notes
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push
+      id: docker_build
+      uses: docker/build-push-action@v2
+      with:
+          push: true
+          tags: |
+            kasparov112000/learnbytesting-stats:latest
+            kasparov112000/learnbytesting-stats:${{ github.sha }}
+
+    - name: Save DigitalOcean kubeconfig with short-lived credentials
+      run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 3b23a2dd-3391-4d1a-a478-e2a5564de99c
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Prep helm chart
+      run: |
+          mv ./helm/Chart.yaml ./helm/Chart.old.yaml &&
+          cat ./helm/Chart.old.yaml | grep -v appVersion > ./helm/Chart.yaml &&
+          echo -e "\r\nappVersion: v${GITHUB_REF##*/}\r\n" >> ./helm/Chart.yaml &&
+          cat ./helm/Chart.yaml
+
+    - name: Deploy
+      run: |
+        helm upgrade stats ./helm/ --install --wait --atomic \
+          --set=image.tag=${{ github.sha }} \
+          --values=./helm/values.yaml \
+          --timeout=10m
