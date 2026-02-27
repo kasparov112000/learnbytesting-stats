@@ -20,7 +20,7 @@ class ActivityAggregator:
     ):
         """Increment flashcard counters in unified daily activity."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return
 
         await sdb.unified_daily_activity.update_one(
@@ -45,7 +45,7 @@ class ActivityAggregator:
     ):
         """Increment opening counters in unified daily activity."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return
 
         await sdb.unified_daily_activity.update_one(
@@ -70,7 +70,7 @@ class ActivityAggregator:
     ):
         """Increment chess play counters in unified daily activity."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return
 
         await sdb.unified_daily_activity.update_one(
@@ -94,7 +94,7 @@ class ActivityAggregator:
     ) -> list[DailyActivity]:
         """Get unified daily activity for heatmap display."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return []
 
         since = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -109,7 +109,7 @@ class ActivityAggregator:
     async def compute_streak(self, user_id: str) -> dict:
         """Compute current and longest streak across all domains."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return {"current": 0, "longest": 0}
 
         # Get all activity days sorted descending

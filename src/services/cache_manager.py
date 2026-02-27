@@ -20,7 +20,7 @@ class CacheManager:
     async def get_cached(self, user_id: str) -> Optional[UnifiedUserAnalytics]:
         """Get cached analytics if still fresh."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return None
 
         doc = await sdb.unified_user_analytics.find_one({"user_id": user_id})
@@ -41,7 +41,7 @@ class CacheManager:
     async def save_cached(self, analytics: UnifiedUserAnalytics):
         """Save or update cached analytics."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return
 
         data = analytics.model_dump()
@@ -57,7 +57,7 @@ class CacheManager:
     async def invalidate(self, user_id: str):
         """Invalidate cache for a user (force recompute on next read)."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return
 
         await sdb.unified_user_analytics.update_one(

@@ -14,7 +14,7 @@ class FlashcardReader:
     async def get_user_stats(self, user_id: str) -> FlashcardStats:
         """Get flashcard stats from the materialized view in stats-db."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return FlashcardStats()
 
         try:
@@ -43,7 +43,7 @@ class FlashcardReader:
     async def get_weakness_tags(self, user_id: str) -> list[dict]:
         """Get weakness tags from materialized flashcard events."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return []
 
         try:
@@ -67,7 +67,7 @@ class FlashcardReader:
     ):
         """Update materialized view from a flashcard review event."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return
 
         correct = 1 if quality >= 3 else 0

@@ -14,7 +14,7 @@ class RepertoireReader:
     async def get_user_stats(self, user_id: str) -> OpeningStats:
         """Get opening stats from the materialized view in stats-db."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return OpeningStats()
 
         try:
@@ -43,7 +43,7 @@ class RepertoireReader:
     async def get_mistake_patterns(self, user_id: str) -> list[dict]:
         """Get mistake patterns from materialized opening events."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return []
 
         try:
@@ -74,7 +74,7 @@ class RepertoireReader:
     ):
         """Update materialized view from an opening attempt event."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return
 
         correct = 1 if was_correct else 0

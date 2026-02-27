@@ -180,7 +180,7 @@ async def ingest_flashcard_review(event: FlashcardReviewEvent):
     )
 
     sdb = db.db
-    if sdb:
+    if sdb is not None:
         # Log the raw event
         await sdb.event_log.insert_one(
             {
@@ -228,7 +228,7 @@ async def ingest_opening_attempt(event: OpeningAttemptEvent):
     )
 
     sdb = db.db
-    if sdb:
+    if sdb is not None:
         await sdb.event_log.insert_one(
             {
                 "event_type": "opening_attempt",
@@ -274,7 +274,7 @@ async def ingest_chess_play(event: ChessPlayEvent):
     )
 
     sdb = db.db
-    if sdb:
+    if sdb is not None:
         await sdb.chess_play_events.insert_one(event.model_dump())
         await sdb.event_log.insert_one(
             {

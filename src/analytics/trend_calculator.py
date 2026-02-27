@@ -28,7 +28,7 @@ class TrendCalculator:
         days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
 
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return TrendResponse(user_id=user_id, period=period)
 
         since = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")

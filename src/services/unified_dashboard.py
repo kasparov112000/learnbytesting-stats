@@ -92,7 +92,7 @@ class UnifiedDashboardService:
     async def _get_chess_play_stats(self, user_id: str) -> ChessPlayStats:
         """Aggregate chess play stats from event collection."""
         sdb = db.db
-        if not sdb:
+        if sdb is None:
             return ChessPlayStats()
 
         try:
