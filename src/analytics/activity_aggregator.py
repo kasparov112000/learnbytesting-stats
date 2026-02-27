@@ -19,7 +19,7 @@ class ActivityAggregator:
         correct: int = 0, time_ms: int = 0,
     ):
         """Increment flashcard counters in unified daily activity."""
-        sdb = db.stats_db
+        sdb = db.db
         if not sdb:
             return
 
@@ -44,7 +44,7 @@ class ActivityAggregator:
         correct: int = 0, time_ms: int = 0,
     ):
         """Increment opening counters in unified daily activity."""
-        sdb = db.stats_db
+        sdb = db.db
         if not sdb:
             return
 
@@ -69,7 +69,7 @@ class ActivityAggregator:
         correct: int = 0, time_ms: int = 0,
     ):
         """Increment chess play counters in unified daily activity."""
-        sdb = db.stats_db
+        sdb = db.db
         if not sdb:
             return
 
@@ -93,7 +93,7 @@ class ActivityAggregator:
         self, user_id: str, days: int = 365
     ) -> list[DailyActivity]:
         """Get unified daily activity for heatmap display."""
-        sdb = db.stats_db
+        sdb = db.db
         if not sdb:
             return []
 
@@ -108,7 +108,7 @@ class ActivityAggregator:
 
     async def compute_streak(self, user_id: str) -> dict:
         """Compute current and longest streak across all domains."""
-        sdb = db.stats_db
+        sdb = db.db
         if not sdb:
             return {"current": 0, "longest": 0}
 

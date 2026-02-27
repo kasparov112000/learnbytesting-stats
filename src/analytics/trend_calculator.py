@@ -27,7 +27,7 @@ class TrendCalculator:
         """Compute trend data over a given period."""
         days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
 
-        sdb = db.stats_db
+        sdb = db.db
         if not sdb:
             return TrendResponse(user_id=user_id, period=period)
 
