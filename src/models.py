@@ -23,7 +23,7 @@ class MasteryLevel(str, Enum):
 # ── Event Payloads (webhook ingestion) ─────────────────────────
 
 class FlashcardReviewEvent(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
     session_id: Optional[str] = None
     flashcard_id: Optional[str] = None
     quality: int = Field(..., ge=0, le=5, description="FSRS rating 0-5")
@@ -66,6 +66,12 @@ class FlashcardStats(BaseModel):
     accuracy: float = 0.0
     avg_response_time_ms: float = 0.0
     due_today: int = 0
+    # Enrichment fields (from live flashcards analytics)
+    cards_today: int = 0
+    mastered_pct: float = 0.0
+    daily_goal: int = 20
+    daily_goal_progress: int = 0
+    rating_distribution: dict = {"again": 0, "hard": 0, "good": 0, "easy": 0}
 
 
 class OpeningStats(BaseModel):
@@ -126,6 +132,12 @@ class UnifiedUserAnalytics(BaseModel):
     correlations: List[Correlation] = []
     last_computed_at: Optional[datetime] = None
     computation_version: int = 1
+    # Top-level convenience fields (duplicated from flashcard_stats for easy frontend access)
+    cards_today: int = 0
+    mastered_pct: float = 0.0
+    daily_goal: int = 20
+    daily_goal_progress: int = 0
+    rating_distribution: dict = {"again": 0, "hard": 0, "good": 0, "easy": 0}
 
 
 # ── Daily Activity (heatmap) ──────────────────────────────────
@@ -204,5 +216,5 @@ class CorrelationResponse(BaseModel):
 class EventAck(BaseModel):
     status: str = "accepted"
     event_type: str
-    user_id: str
+    user_id: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)

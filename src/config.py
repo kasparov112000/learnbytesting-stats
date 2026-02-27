@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     env_name: str = "LOCAL"
     log_level: str = "INFO"
 
+    # Orchestrator URL (for enrichment calls to other services)
+    orchestrator_url: str = "http://localhost:8080"
+
     # Own database (read/write) — all analytics data
     stats_mongodb_url: str = "mongodb://localhost:27017"
     stats_mongodb_database: str = "stats-db"

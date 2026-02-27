@@ -8,6 +8,7 @@ from ..database import db
 from ..models import ChessPlayStats, UnifiedUserAnalytics
 from .cache_manager import cache_manager
 from .flashcard_reader import flashcard_reader
+from .flashcard_enrichment import fetch_flashcard_analytics
 from .repertoire_reader import repertoire_reader
 from ..analytics.weakness_analyzer import weakness_analyzer
 from ..analytics.activity_aggregator import activity_aggregator
@@ -63,6 +64,35 @@ class UnifiedDashboardService:
         # Unified streak
         streak_info = await activity_aggregator.compute_streak(user_id)
 
+        # Enrich with live FSRS data from flashcards service
+        enrichment = await fetch_flashcard_analytics(user_id)
+        if enrichment:
+            logger.info("Applying flashcard enrichment", user_id=user_id)
+            fc_stats.total_cards = enrichment.total_cards or fc_stats.total_cards
+            fc_stats.mastered = enrichment.mastered_cards or fc_stats.mastered
+            fc_stats.learning = enrichment.studying_cards or fc_stats.learning
+            fc_stats.new_cards = enrichment.new_cards or fc_stats.new_cards
+            fc_stats.due_today = enrichment.due_cards or fc_stats.due_today
+            fc_stats.cards_today = enrichment.cards_today
+            fc_stats.daily_goal = enrichment.daily_goal
+            fc_stats.daily_goal_progress = enrichment.goal_progress
+            fc_stats.rating_distribution = enrichment.rating_distribution
+            if enrichment.total_cards > 0:
+                fc_stats.mastered_pct = round(
+                    enrichment.mastered_cards / enrichment.total_cards * 100, 1
+                )
+            if enrichment.overall_accuracy > 0:
+                fc_stats.accuracy = enrichment.overall_accuracy
+            if enrichment.total_reviews > 0:
+                fc_stats.total_reviews = enrichment.total_reviews
+
+        # Reconcile streaks: use max of stats-service (cross-domain) vs flashcards-service
+        current_streak = streak_info["current"]
+        longest_streak = streak_info["longest"]
+        if enrichment:
+            current_streak = max(current_streak, enrichment.current_streak)
+            longest_streak = max(longest_streak, enrichment.longest_streak)
+
         # Weaknesses
         weaknesses = await weakness_analyzer.get_unified_weaknesses(user_id)
 
@@ -76,14 +106,20 @@ class UnifiedDashboardService:
             total_activities=total_activities,
             total_study_time_ms=total_time,
             overall_accuracy=round(overall_accuracy, 1),
-            current_streak=streak_info["current"],
-            longest_streak=streak_info["longest"],
+            current_streak=current_streak,
+            longest_streak=longest_streak,
             flashcard_stats=fc_stats,
             opening_stats=op_stats,
             chess_play_stats=cp_stats,
             unified_weaknesses=weaknesses,
             study_suggestions=suggestions,
             last_computed_at=datetime.utcnow(),
+            # Top-level convenience fields
+            cards_today=fc_stats.cards_today,
+            mastered_pct=fc_stats.mastered_pct,
+            daily_goal=fc_stats.daily_goal,
+            daily_goal_progress=fc_stats.daily_goal_progress,
+            rating_distribution=fc_stats.rating_distribution,
         )
 
         await cache_manager.save_cached(analytics)
