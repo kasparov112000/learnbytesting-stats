@@ -1,6 +1,6 @@
 """Fetches live FSRS-derived flashcard analytics from the flashcards service via orchestrator."""
 
-from typing import Optional
+from typing import List, Optional
 
 import httpx
 import structlog
@@ -67,3 +67,41 @@ async def fetch_flashcard_analytics(user_id: str) -> Optional[FlashcardAnalytics
             error=str(e),
         )
         return None
+
+
+class WeaknessTagStat(BaseModel):
+    tagId: str = ""
+    tagType: str = ""
+    tagSpecific: str = ""
+    displayName: str = ""
+    cardsTotal: int = 0
+    cardsMastered: int = 0
+    cardsLearning: int = 0
+    cardsNew: int = 0
+    masteryPercent: float = 0.0
+    accuracy: float = 0.0
+    totalReviews: int = 0
+
+
+async def fetch_weakness_tags(user_id: str) -> List[WeaknessTagStat]:
+    """Fetch detailed weakness-tag stats from flashcards service via orchestrator."""
+    url = f"{settings.orchestrator_url}/api/flashcards/analytics/{user_id}/weakness-tags"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            raw = resp.json()
+            data = raw.get("result", raw) if isinstance(raw, dict) else raw
+
+        if not isinstance(data, list):
+            return []
+
+        logger.debug("Weakness tags fetched", user_id=user_id, count=len(data))
+        return [WeaknessTagStat(**item) for item in data]
+    except Exception as e:
+        logger.warning(
+            "Weakness tags fetch failed",
+            user_id=user_id,
+            error=str(e),
+        )
+        return []

@@ -30,6 +30,7 @@ from .models import (
 from .services.unified_dashboard import dashboard_service
 from .services.cache_manager import cache_manager
 from .services.flashcard_reader import flashcard_reader
+from .services.flashcard_enrichment import fetch_weakness_tags
 from .services.repertoire_reader import repertoire_reader
 from .analytics.activity_aggregator import activity_aggregator
 from .analytics.trend_calculator import trend_calculator
@@ -159,6 +160,13 @@ async def get_weaknesses(user_id: str):
     return WeaknessResponse(user_id=user_id, weaknesses=weaknesses)
 
 
+@app.get("/dashboard/{user_id}/weakness-tags")
+async def get_weakness_tags(user_id: str):
+    """Get detailed weakness-tag stats from flashcards analytics."""
+    tags = await fetch_weakness_tags(user_id)
+    return {"user_id": user_id, "tags": [t.model_dump() for t in tags]}
+
+
 @app.get("/dashboard/{user_id}/suggestions", response_model=SuggestionResponse)
 async def get_suggestions(user_id: str):
     """Get study suggestions based on cross-domain analysis."""
@@ -173,9 +181,13 @@ async def get_suggestions(user_id: str):
 @app.post("/events/flashcard-review", response_model=EventAck)
 async def ingest_flashcard_review(event: FlashcardReviewEvent):
     """Called by flashcards service (via orchestrator) after a review."""
+    user_id = event.user_id or event.session_id
+    if not user_id:
+        raise HTTPException(status_code=422, detail="user_id or session_id required")
+
     logger.info(
         "Flashcard review event",
-        user_id=event.user_id,
+        user_id=user_id,
         quality=event.quality,
     )
 
@@ -185,7 +197,7 @@ async def ingest_flashcard_review(event: FlashcardReviewEvent):
         await sdb.event_log.insert_one(
             {
                 "event_type": "flashcard_review",
-                "user_id": event.user_id,
+                "user_id": user_id,
                 "payload": event.model_dump(),
                 "timestamp": event.timestamp,
             }
@@ -193,7 +205,7 @@ async def ingest_flashcard_review(event: FlashcardReviewEvent):
 
     # Update materialized view
     await flashcard_reader.update_from_event(
-        user_id=event.user_id,
+        user_id=user_id,
         quality=event.quality,
         response_time_ms=event.response_time_ms or 0,
         is_new_card=event.is_new_card,
@@ -205,7 +217,7 @@ async def ingest_flashcard_review(event: FlashcardReviewEvent):
     date_str = event.timestamp.strftime("%Y-%m-%d")
     correct = 1 if event.quality >= 3 else 0
     await activity_aggregator.record_flashcard_activity(
-        user_id=event.user_id,
+        user_id=user_id,
         date_str=date_str,
         reviews=1,
         correct=correct,
@@ -213,9 +225,9 @@ async def ingest_flashcard_review(event: FlashcardReviewEvent):
     )
 
     # Invalidate cache
-    await cache_manager.invalidate(event.user_id)
+    await cache_manager.invalidate(user_id)
 
-    return EventAck(event_type="flashcard_review", user_id=event.user_id)
+    return EventAck(event_type="flashcard_review", user_id=user_id)
 
 
 @app.post("/events/opening-attempt", response_model=EventAck)
