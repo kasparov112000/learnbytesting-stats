@@ -35,12 +35,16 @@ async def fetch_flashcard_analytics(user_id: str) -> Optional[FlashcardAnalytics
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(url)
             resp.raise_for_status()
-            data = resp.json()
+            raw = resp.json()
+            # Orchestrator wraps response in {"result": ...}
+            data = raw.get("result", raw) if isinstance(raw, dict) else raw
 
         logger.debug("Flashcard enrichment fetched", user_id=user_id)
 
+        today = data.get("todayProgress", {}) or {}
+
         return FlashcardAnalyticsSummary(
-            cards_today=data.get("cardsToday", 0) or 0,
+            cards_today=data.get("cardsToday", 0) or today.get("cardsReviewed", 0) or 0,
             total_cards=data.get("totalCards", 0) or 0,
             mastered_cards=data.get("masteredCards", 0) or 0,
             studying_cards=data.get("studyingCards", 0) or 0,
@@ -49,7 +53,7 @@ async def fetch_flashcard_analytics(user_id: str) -> Optional[FlashcardAnalytics
             overall_mastery=data.get("overallMastery", 0.0) or 0.0,
             overall_accuracy=data.get("overallAccuracy", 0.0) or 0.0,
             daily_goal=data.get("dailyGoal", 20) or 20,
-            goal_progress=data.get("goalProgress", 0) or 0,
+            goal_progress=today.get("goalProgress", 0) or 0,
             rating_distribution=data.get("ratingDistribution", {})
                 or {"again": 0, "hard": 0, "good": 0, "easy": 0},
             current_streak=data.get("currentStreak", 0) or 0,
