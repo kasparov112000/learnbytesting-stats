@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Optional
 
 import structlog
 from fastapi import FastAPI, HTTPException, Query, status
@@ -30,7 +31,7 @@ from .models import (
 from .services.unified_dashboard import dashboard_service
 from .services.cache_manager import cache_manager
 from .services.flashcard_reader import flashcard_reader
-from .services.flashcard_enrichment import fetch_weakness_tags
+from .services.flashcard_enrichment import fetch_weakness_tags, fetch_opening_progress
 from .services.repertoire_reader import repertoire_reader
 from .analytics.activity_aggregator import activity_aggregator
 from .analytics.trend_calculator import trend_calculator
@@ -125,9 +126,12 @@ async def health_check():
 # ── Unified Dashboard ─────────────────────────────────────────
 
 @app.get("/dashboard/{user_id}", response_model=UnifiedUserAnalytics)
-async def get_dashboard(user_id: str):
+async def get_dashboard(
+    user_id: str,
+    category_ids: Optional[str] = Query(None, description="Comma-separated category IDs to filter stats"),
+):
     """Get unified learning dashboard for a user."""
-    return await dashboard_service.get_dashboard(user_id)
+    return await dashboard_service.get_dashboard(user_id, category_ids=category_ids)
 
 
 @app.get("/dashboard/{user_id}/heatmap", response_model=HeatmapResponse)
@@ -165,6 +169,13 @@ async def get_weakness_tags(user_id: str):
     """Get detailed weakness-tag stats from flashcards analytics."""
     tags = await fetch_weakness_tags(user_id)
     return {"user_id": user_id, "tags": [t.model_dump() for t in tags]}
+
+
+@app.get("/dashboard/{user_id}/opening-progress")
+async def get_opening_progress(user_id: str):
+    """Get per-opening mastery breakdown from user-repertoire."""
+    openings = await fetch_opening_progress(user_id)
+    return {"user_id": user_id, "openings": openings}
 
 
 @app.get("/dashboard/{user_id}/suggestions", response_model=SuggestionResponse)

@@ -28,9 +28,13 @@ class FlashcardAnalyticsSummary(BaseModel):
     total_reviews: int = 0
 
 
-async def fetch_flashcard_analytics(user_id: str) -> Optional[FlashcardAnalyticsSummary]:
+async def fetch_flashcard_analytics(
+    user_id: str, category_ids: Optional[str] = None
+) -> Optional[FlashcardAnalyticsSummary]:
     """Call flashcards analytics endpoint via orchestrator. Returns None on failure."""
     url = f"{settings.orchestrator_url}/api/flashcards/analytics/{user_id}/summary"
+    if category_ids:
+        url += f"?categoryIds={category_ids}"  # plural — route handles comma-split
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(url)
@@ -81,6 +85,28 @@ class WeaknessTagStat(BaseModel):
     masteryPercent: float = 0.0
     accuracy: float = 0.0
     totalReviews: int = 0
+
+
+async def fetch_opening_progress(user_id: str) -> list:
+    """Fetch per-opening mastery breakdown from user-repertoire via orchestrator."""
+    url = f"{settings.orchestrator_url}/api/user-repertoire/stats/{user_id}/by-opening"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            raw = resp.json()
+            data = raw.get("result", raw) if isinstance(raw, dict) else raw
+
+        openings = data.get("openings", []) if isinstance(data, dict) else []
+        logger.debug("Opening progress fetched", user_id=user_id, count=len(openings))
+        return openings
+    except Exception as e:
+        logger.warning(
+            "Opening progress fetch failed",
+            user_id=user_id,
+            error=str(e),
+        )
+        return []
 
 
 async def fetch_weakness_tags(user_id: str) -> List[WeaknessTagStat]:

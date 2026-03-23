@@ -1,6 +1,7 @@
 """Main dashboard aggregation service — unifies stats from all domains."""
 
 from datetime import datetime
+from typing import Optional
 
 import structlog
 
@@ -19,16 +20,22 @@ logger = structlog.get_logger()
 class UnifiedDashboardService:
     """Aggregates stats from event-sourced materialized views."""
 
-    async def get_dashboard(self, user_id: str) -> UnifiedUserAnalytics:
+    async def get_dashboard(
+        self, user_id: str, category_ids: Optional[str] = None
+    ) -> UnifiedUserAnalytics:
         """Get unified dashboard stats, using cache when fresh."""
-        cached = await cache_manager.get_cached(user_id)
-        if cached:
-            logger.debug("Returning cached dashboard", user_id=user_id)
-            return cached
+        # Skip cache when category-filtered (scoped results shouldn't pollute global cache)
+        if not category_ids:
+            cached = await cache_manager.get_cached(user_id)
+            if cached:
+                logger.debug("Returning cached dashboard", user_id=user_id)
+                return cached
 
-        return await self.compute_dashboard(user_id)
+        return await self.compute_dashboard(user_id, category_ids=category_ids)
 
-    async def compute_dashboard(self, user_id: str) -> UnifiedUserAnalytics:
+    async def compute_dashboard(
+        self, user_id: str, category_ids: Optional[str] = None
+    ) -> UnifiedUserAnalytics:
         """Force-compute fresh unified stats from materialized views."""
         logger.info("Computing unified dashboard", user_id=user_id)
 
@@ -65,7 +72,7 @@ class UnifiedDashboardService:
         streak_info = await activity_aggregator.compute_streak(user_id)
 
         # Enrich with live FSRS data from flashcards service
-        enrichment = await fetch_flashcard_analytics(user_id)
+        enrichment = await fetch_flashcard_analytics(user_id, category_ids=category_ids)
         if enrichment:
             logger.info("Applying flashcard enrichment", user_id=user_id)
             fc_stats.total_cards = enrichment.total_cards or fc_stats.total_cards
@@ -122,7 +129,9 @@ class UnifiedDashboardService:
             rating_distribution=fc_stats.rating_distribution,
         )
 
-        await cache_manager.save_cached(analytics)
+        # Only cache unfiltered (global) results
+        if not category_ids:
+            await cache_manager.save_cached(analytics)
         return analytics
 
     async def _get_chess_play_stats(self, user_id: str) -> ChessPlayStats:
